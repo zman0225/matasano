@@ -210,13 +210,22 @@ pub fn base64_to_hex(string: String) -> Vec<u8> {
 	v
 }
 
-pub fn pad_hex(cipher: &mut Vec<u8>, len: usize) {
-    let cipher_len = cipher.len() % len;
-    let remaining = len - cipher_len;
+pub fn unpad_pkcs7(text: &mut Vec<u8>) {
+    if let Some(&last) = text.last() {
+        let text_len = text.len();
+        if last == text[text_len - last as usize] {
+            text.truncate(text_len - last as usize);
+        }
+    }
+}
+
+pub fn pad_pkcs7(text: &mut Vec<u8>, len: usize) {
+    let text_len = text.len() % len;
+    let remaining = len - text_len;
 
     if remaining > 0 {
-         let fours = vec![0x04; remaining];
-         cipher.extend(fours);
+         let fours = vec![remaining as u8; remaining];
+         text.extend(fours);
     } 
 }
 

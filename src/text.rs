@@ -90,3 +90,22 @@ impl CharFreq {
         self.dist(&other)
     }
 }
+
+pub fn kv_parse(input: String) -> HashMap<String, String>{
+    let mut retval: HashMap<String, String> = HashMap::new();
+    for item in input.split('&') {
+        let pair: Vec<&str> = item.split('=').collect();
+        let mut str_pair = pair.iter().map(|s| String::from(*s));
+        retval.insert(str_pair.next().unwrap(), str_pair.next().unwrap());
+    }
+    retval
+}
+
+pub fn kv_encode(map: HashMap<String, String>) -> String {
+    let mut retval = vec!();
+    for (k,v) in map.iter() {
+        let to_insert = format!("{}={}", k, v);
+        retval.push(to_insert);
+    }
+    retval.join("&")
+}

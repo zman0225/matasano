@@ -3,7 +3,9 @@ use conversions::{base64_to_hex, hex_to_base64, string_to_hex, hex_to_string};
 #[allow(unused_imports)]
 use combine::{xor_byte, xor_each};
 #[allow(unused_imports)]
-use crack::{find_xor_key, guess_key_size, find_repeated_xor_key, aes_ecb};
+use crack::{find_xor_key, guess_key_size, find_repeated_xor_key};
+#[allow(unused_imports)]
+use crypter::aes_ecb;
 #[allow(unused_imports)]
 use text::CharFreq;
 #[allow(unused_imports)]
@@ -104,7 +106,6 @@ fn challenge_6() {
 			best_message = (score, msg_string);
 		}
 	}
-
 	assert!(best_message.1.starts_with("I'm back and I'm ringin' the bell"));
 }
 
@@ -119,7 +120,7 @@ fn challenge_7() {
 
     let block_size = Cipher::aes_128_ecb().block_size();
     let mut msg = vec![0; cipher.len() + block_size];
-    let count = aes_ecb(KEY, &cipher, &mut msg, Mode::Decrypt);
+    let count = aes_ecb(KEY.as_bytes(), &cipher, None, &mut msg, Mode::Decrypt);
     msg.truncate(count);
 
     assert!(msg.len() > 0);

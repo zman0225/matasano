@@ -1,5 +1,3 @@
-use openssl::symm::{Crypter, Cipher, Mode};
-
 pub fn find_xor_key(m: &[u8]) -> u8 {
 	use combine::xor_byte;
 	use std::f32;
@@ -57,8 +55,7 @@ pub fn guess_key_size(cipher: &[u8]) -> Vec<usize>{
 
 pub fn find_repeated_xor_key(cipher: &[u8], key_size: usize) -> Vec<u8> {
     let mut blocks: Vec<Vec<u8>> = vec!();
-    let chunks = cipher.chunks(key_size);
-    for chunk in chunks {
+    for chunk in cipher.chunks(key_size) {
     	for (idx, block) in chunk.iter().enumerate() {
     	    if blocks.len() <= idx {
     	    	blocks.push(vec!(*block));
@@ -67,48 +64,6 @@ pub fn find_repeated_xor_key(cipher: &[u8], key_size: usize) -> Vec<u8> {
     	    }
     	}
     }
+
     blocks.iter().map(|v| find_xor_key(v)).collect()
-}
-
-
-pub fn aes_ecb(key: &str, cipher: &[u8], msg: &mut [u8], mode: Mode) -> usize{
-    let mut c = Crypter::new(
-        Cipher::aes_128_ecb(),
-        mode,
-        key.as_bytes(),
-        None
-    ).unwrap();
-    c.pad(false);
-
-    let mut count = c.update(&cipher, &mut *msg).unwrap();
-    count += c.finalize(&mut msg[count..]).unwrap();
-    count
-}
-
-pub fn aes_cbc(key: &str, cipher: &[u8], iv: &[u8], msg: &mut Vec<u8>, mode: Mode, block_size: usize) -> usize {
-	use combine::xor_each;
-
-	let mut count = 0;
-	let mut prev = iv.to_vec();
-
-    for block in cipher.chunks(block_size){
-    	let mut tmp = vec![0 as u8; block.len() + block_size].to_owned();
-    	count += match mode {
-    	    Mode::Encrypt => {
-    	    	let c = aes_ecb(key, &xor_each(&block, &prev), &mut tmp, mode);
-    	    	tmp.truncate(c);
-    	    	prev = tmp.to_owned();
-    	    	c
-    	    },
-    	    Mode::Decrypt => {
-    	    	let c = aes_ecb(key, &block, &mut tmp, mode);
-    	    	tmp.truncate(c);
-    	    	tmp = xor_each(&tmp, &prev);
-    	    	prev = block.to_owned();
-    	    	c
-    	    },
-    	};
-    	msg.extend(&tmp);
-    }
-    count
 }
