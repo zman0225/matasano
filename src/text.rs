@@ -109,3 +109,14 @@ pub fn kv_encode(map: HashMap<String, String>) -> String {
     }
     retval.join("&")
 }
+
+pub fn profile_for(email: &str) -> String {
+    let sanitized_email = email.replace('@', "").replace('=',"");
+    let obj: HashMap<String, String> = [
+        ("email".to_string(), sanitized_email),
+        ("uid".to_string(), "10".to_string()),
+        ("role".to_string(), "user".to_string())
+    ].iter().cloned().collect();
+
+    kv_encode(obj)
+}

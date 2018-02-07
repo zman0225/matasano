@@ -5,16 +5,15 @@ use combine::{xor_byte, xor_each};
 #[allow(unused_imports)]
 use crack::{find_xor_key, guess_key_size, find_repeated_xor_key};
 #[allow(unused_imports)]
-use crypter::{aes_ecb, aes_cbc, encryption_oracle, consistent_ecb, random_aes_key};
+use crypter::{aes_ecb, aes_cbc, encryption_oracle, consistent_ecb, random_aes_key, random_bytes, ecb_oracle};
 #[allow(unused_imports)]
-use text::CharFreq;
+use text::{CharFreq, profile_for};
 #[allow(unused_imports)]
 use measure::hamming;
 #[allow(unused_imports)]
 use std::f32;
 #[allow(unused_imports)]
 use openssl::symm::{Crypter, Cipher, Mode};
-use std::collections::HashMap;
 
 #[test]
 fn challenge_9() {
@@ -69,88 +68,10 @@ fn challenge_11() {
     assert_eq!(guessed_mode, mode);
 }
 
-fn find_block_size(key: &Vec<u8>, plain_text: &mut Vec<u8>) -> usize {
-    let block_size;
-    let mut cipher_text = vec!();
-    consistent_ecb(&key, &plain_text, &mut cipher_text);
-    loop {
-        plain_text.push(0);
-        let cipher_size = cipher_text.len();
-        let count = consistent_ecb(&key, &plain_text, &mut cipher_text);
-        if count != cipher_size{
-            block_size = count - cipher_size; 
-            break;
-        }
-    }
-    block_size
-}
-
-fn confirm_ecb(block_size: usize, key: &Vec<u8>, plain_text: &mut Vec<u8>) {
-    plain_text.clear();
-    plain_text.extend(vec![0; 3*block_size]);
-
-    let mut cipher_text = vec!();
-    consistent_ecb(&key, &plain_text, &mut cipher_text);
-    assert_eq!(cipher_text[0..16], cipher_text[16..32]);
-}
-
 #[test]
 fn challenge_12() {
-    let generated_key = random_aes_key();
-    let mut plain_text: Vec<u8> = vec!();
-    let mut cipher_text: Vec<u8> = vec!();
-
-    // 1. find block size
-    let block_size = find_block_size(&generated_key, &mut plain_text);
-    assert_eq!(block_size, 16);
-
-    // 2. confirm that it is ECB
-    confirm_ecb(block_size, &generated_key, &mut plain_text);
-
-    let mut decrypted: Vec<u8> = vec!(); 
-
-    // solve, we can systemically replace a single value of known spot in the plaintext
-    loop {
-        let mut dict: HashMap<Vec<u8>, u8> = HashMap::new();
-
-        // we need to prepad the prefix so that we always know the last character
-        plain_text.clear();
-        plain_text.extend(vec![0; block_size - (decrypted.len()%block_size) - 1]);
-        for last_byte in 0x00..0xFF {
-            cipher_text.clear();
-            let try_plain_text = [&plain_text[..], &decrypted[..], &[last_byte]].concat();
-            consistent_ecb(&generated_key, &try_plain_text, &mut cipher_text);
-            dict.insert(cipher_text[..try_plain_text.len()].to_owned(), last_byte);
-        }
-
-        cipher_text.clear();
-        consistent_ecb(&generated_key, &plain_text, &mut cipher_text);
-        if decrypted.len()+plain_text.len()+1 >= cipher_text.len() {
-            break;
-        }   
-        let query = cipher_text[..decrypted.len()+plain_text.len()+1].to_vec();
-        if let Some(next_byte) = dict.get(&query) {
-            decrypted.push(*next_byte);
-            
-        } else {
-            break;
-        }
-    }
-    let result = String::from_utf8(decrypted);
-    println!("answer is {:?}", result.unwrap());
-}
-
-
-fn profile_for(email: &str) -> String {
-    use text::kv_encode;
-    let sanitized_email = email.replace('@', "").replace('=',"");
-    let obj: HashMap<String, String> = [
-        ("email".to_string(), sanitized_email),
-        ("uid".to_string(), "10".to_string()),
-        ("role".to_string(), "user".to_string())
-    ].iter().cloned().collect();
-
-    kv_encode(obj)
+    let result = ecb_oracle(&mut vec!(), vec!());
+    println!("answer is {:?}", result);
 }
 
 #[test]
@@ -172,3 +93,10 @@ fn challenge_13() {
     assert_eq!(plaintext.as_bytes(), &decrypted[..]);
 }
 
+#[test]
+fn challenge_14() {
+    let mut plain_text: Vec<u8> = profile_for("foo@bar.com").as_bytes().to_vec();
+    let prefix = random_bytes().to_vec();
+    let result = ecb_oracle(&mut vec!(), prefix);
+    println!("answer is {:?}", result);
+}
