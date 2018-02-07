@@ -87,12 +87,13 @@ pub fn encryption_oracle(plaintext: &[u8], msg: &mut Vec<u8>) -> String {
     String::from(mode)
 }
 
-pub fn consistent_ecb(key: &Vec<u8>, plaintext: &[u8], msg: &mut Vec<u8>) -> usize {
+pub fn consistent_ecb(key: &Vec<u8>, prefix: &Vec<u8>, plaintext: &[u8], msg: &mut Vec<u8>) -> usize {
     let suffix = String::from("Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkg\
     aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq\
     dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK");
     
     let mut mod_plaintext: Vec<u8> = vec!();
+    mod_plaintext.extend(prefix);
     mod_plaintext.extend(plaintext);
 
     mod_plaintext.extend(base64_to_hex(suffix));
@@ -105,11 +106,11 @@ pub fn consistent_ecb(key: &Vec<u8>, plaintext: &[u8], msg: &mut Vec<u8>) -> usi
 fn find_block_size(key: &Vec<u8>, plain_text: &mut Vec<u8>) -> usize {
     let block_size;
     let mut cipher_text = vec!();
-    consistent_ecb(&key, &plain_text, &mut cipher_text);
+    consistent_ecb(&key, &vec!(), &plain_text, &mut cipher_text);
     loop {
         plain_text.push(0);
         let cipher_size = cipher_text.len();
-        let count = consistent_ecb(&key, &plain_text, &mut cipher_text);
+        let count = consistent_ecb(&key, &vec!(), &plain_text, &mut cipher_text);
         if count != cipher_size{
             block_size = count - cipher_size; 
             break;
@@ -123,18 +124,22 @@ fn confirm_ecb(block_size: usize, key: &Vec<u8>, plain_text: &mut Vec<u8>) {
     plain_text.extend(vec![0; 3*block_size]);
 
     let mut cipher_text = vec!();
-    consistent_ecb(&key, &plain_text, &mut cipher_text);
+    consistent_ecb(&key, &vec!(), &plain_text, &mut cipher_text);
     assert_eq!(cipher_text[0..16], cipher_text[16..32]);
 }
 
-fn generate_next_byte(generated_key: &Vec<u8>, block_size: usize, prefix_size: usize) -> String {
+fn generate_next_byte(generated_key: &Vec<u8>, block_size: usize, prefix: &Vec<u8>, prefix_size: usize) -> String {
     let mut decrypted: Vec<u8> = vec!(); 
     let mut cipher_text: Vec<u8> = vec!();
     let mut plain_text: Vec<u8> = vec!();
 
-    let prefix_pad_size = block_size - (prefix_size % block_size);
-    
+    // the prefix padding at the end
+    let prefix_pad_size = if prefix_size > 0 { block_size - (prefix_size % block_size) } else { 0 };
+    let prefix_len_round_down = prefix_size - (prefix_size % block_size);
 
+    // will always be a multiple of 16
+    let encrypted_prefix_len = prefix_pad_size + prefix_len_round_down;
+    
     // solve, we can systemically replace a single value of known spot in the plaintext
     loop {
         let mut dict: HashMap<Vec<u8>, u8> = HashMap::new();
@@ -142,24 +147,24 @@ fn generate_next_byte(generated_key: &Vec<u8>, block_size: usize, prefix_size: u
 
         // we need to prepad the prefix so that we always know the last character
         plain_text.clear();
-        plain_text.extend(vec![0; prefix_pad_size+decrypted_pad_size - 1]);
+        plain_text.extend(vec![0; prefix_pad_size + decrypted_pad_size - 1]);
         for last_byte in 0x00..0xFF {
             cipher_text.clear();
             let try_plain_text = [&plain_text[..], &decrypted[..], &[last_byte]].concat();
-            consistent_ecb(&generated_key, &try_plain_text, &mut cipher_text);
-            dict.insert(cipher_text[prefix_size..prefix_size+try_plain_text.len()].to_owned(), last_byte);
+            consistent_ecb(&generated_key, prefix, &try_plain_text, &mut cipher_text);
+            dict.insert(cipher_text[encrypted_prefix_len..encrypted_prefix_len+try_plain_text.len()].to_owned(), last_byte);
         }
 
         cipher_text.clear();
-        consistent_ecb(&generated_key, &plain_text, &mut cipher_text);
+        consistent_ecb(&generated_key, prefix, &plain_text, &mut cipher_text);
         if prefix_size + decrypted.len() + plain_text.len()+1 >= cipher_text.len() {
             break;
         }   
-        let query = cipher_text[prefix_size..prefix_size+decrypted.len()+plain_text.len()+1].to_vec();
+        let query = cipher_text[encrypted_prefix_len..encrypted_prefix_len+decrypted.len()+plain_text.len()+1].to_vec();
+        
         if let Some(next_byte) = dict.get(&query) {
             decrypted.push(*next_byte);
         } else {
-            println!("not found {:?} {:?}", query, dict);
             break;
         }
     }
@@ -175,9 +180,9 @@ fn ecb_match_blocks(key: &Vec<u8>, prefix: &[u8], block_size: usize) -> usize {
     let mut digest1 = vec!();
     let mut digest2 = vec!();
 
-    consistent_ecb(key, &plain_text, &mut digest1);    
+    consistent_ecb(key, &vec!(), &plain_text, &mut digest1);    
     plain_text.push(0);
-    consistent_ecb(key, &plain_text, &mut digest2);
+    consistent_ecb(key, &vec!(), &plain_text, &mut digest2);
 
     let (mut c1, mut c2) = (digest1.chunks(block_size), digest2.chunks(block_size));
     for i in 0..c1.len(){
@@ -221,7 +226,7 @@ pub fn ecb_oracle(plain_text: &mut Vec<u8>, prefix: Vec<u8>) -> String {
     let prefix_size = if prefix.len() > 0 { find_prefix_size(&generated_key, &prefix, block_size) } else { 0 };
     assert_eq!(prefix_size, prefix.len());
 
-    generate_next_byte(&generated_key, block_size, prefix_size)
+    generate_next_byte(&generated_key, block_size, &prefix, prefix_size)
 }
 
 

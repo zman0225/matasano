@@ -210,13 +210,29 @@ pub fn base64_to_hex(string: String) -> Vec<u8> {
 	v
 }
 
-pub fn unpad_pkcs7(text: &mut Vec<u8>) {
-    if let Some(&last) = text.last() {
-        let text_len = text.len();
-        if last == text[text_len - last as usize] {
-            text.truncate(text_len - last as usize);
+
+// if valid returns the length to truncate, else return original length
+fn pkcs7_truncate_len(text: &[u8]) -> usize{
+    let text_len = text.len();
+
+    if text_len == 0 { return text.len() }
+    let last = text[text.len() - 1];
+
+    for i in text_len - last as usize .. text_len {
+        if last != text[i] {
+            return text_len;
         }
     }
+    text_len - last as usize
+}
+
+pub fn pkcs7_validate(text: &[u8]) -> bool {
+    pkcs7_truncate_len(text) != text.len()
+}
+
+pub fn unpad_pkcs7(text: &mut Vec<u8>) {
+    let truncate_len = pkcs7_truncate_len(&text);
+    text.truncate(truncate_len);
 }
 
 pub fn pad_pkcs7(text: &mut Vec<u8>, len: usize) {

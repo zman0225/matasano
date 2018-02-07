@@ -1,5 +1,5 @@
 #[allow(unused_imports)]
-use conversions::{base64_to_hex, hex_to_base64, string_to_hex, hex_to_string, pad_pkcs7, unpad_pkcs7};
+use conversions::{base64_to_hex, hex_to_base64, string_to_hex, hex_to_string, pad_pkcs7, unpad_pkcs7, pkcs7_validate};
 #[allow(unused_imports)]
 use combine::{xor_byte, xor_each};
 #[allow(unused_imports)]
@@ -95,8 +95,18 @@ fn challenge_13() {
 
 #[test]
 fn challenge_14() {
-    let mut plain_text: Vec<u8> = profile_for("foo@bar.com").as_bytes().to_vec();
     let prefix = random_bytes().to_vec();
     let result = ecb_oracle(&mut vec!(), prefix);
     println!("answer is {:?}", result);
+}
+
+#[test]
+fn challenge_15() {
+    let valid_bytes = "ICE ICE BABY\x04\x04\x04\x04".as_bytes();
+    let invalid_bytes1 = "ICE ICE BABY\x05\x05\x05\x05".as_bytes();
+    let invalid_bytes2 = "ICE ICE BABY\x01\x02\x03\x04".as_bytes();
+    
+    assert_eq!(pkcs7_validate(&valid_bytes), true);
+    assert_eq!(pkcs7_validate(&invalid_bytes1), false);
+    assert_eq!(pkcs7_validate(&invalid_bytes2), false);
 }
