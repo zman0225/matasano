@@ -107,16 +107,21 @@ pub fn kv_encode(map: HashMap<String, String>) -> String {
         let to_insert = format!("{}={}", k, v);
         retval.push(to_insert);
     }
+
     retval.join("&")
 }
 
-pub fn profile_for(email: &str) -> String {
+pub fn profile_for(email: &str, role: &str) -> String {
     let sanitized_email = email.replace('@', "").replace('=',"");
     let obj: HashMap<String, String> = [
         ("email".to_string(), sanitized_email),
         ("uid".to_string(), "10".to_string()),
-        ("role".to_string(), "user".to_string())
+        ("role".to_string(), role.replace('@', "").replace('=',""))
     ].iter().cloned().collect();
 
     kv_encode(obj)
+}
+
+pub fn sanitize_for_url(raw_str: &str) -> String {
+    raw_str.replace("=", "%3D").replace(";", "%3B")
 }

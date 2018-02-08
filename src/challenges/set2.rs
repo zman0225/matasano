@@ -7,7 +7,7 @@ use crack::{find_xor_key, guess_key_size, find_repeated_xor_key};
 #[allow(unused_imports)]
 use crypter::{aes_ecb, aes_cbc, encryption_oracle, consistent_ecb, random_aes_key, random_bytes, ecb_oracle};
 #[allow(unused_imports)]
-use text::{CharFreq, profile_for};
+use text::{CharFreq, profile_for, kv_parse, sanitize_for_url};
 #[allow(unused_imports)]
 use measure::hamming;
 #[allow(unused_imports)]
@@ -78,7 +78,7 @@ fn challenge_12() {
 fn challenge_13() {
     use conversions::pad_pkcs7;
 
-    let plaintext = profile_for("foo@bar.com");
+    let plaintext = profile_for("foo@bar.com", "user");
     let generated_key = random_aes_key();
 
     let mut padded_plaintext = plaintext.as_bytes().to_owned().to_vec();
@@ -110,3 +110,61 @@ fn challenge_15() {
     assert_eq!(pkcs7_validate(&invalid_bytes1), false);
     assert_eq!(pkcs7_validate(&invalid_bytes2), false);
 }
+
+
+// challenge 16 helpers
+fn encrypt_cbc_profile(profile_data: &str, key: &[u8], encrypted: &mut Vec<u8>) -> usize {
+    let prefix = "comment1=cooking%20MCs;userdata=".as_bytes();
+    let suffix = ";comment2=%20like%20a%20pound%20of%20bacon".as_bytes();
+
+    let plain_text = [&prefix[..], &profile_data.as_bytes()[..], &suffix[..]].concat();
+    let mut padded_input = plain_text.to_owned().to_vec();
+    pad_pkcs7(&mut padded_input, key.len());
+
+    aes_cbc(key, &padded_input, Some(&[0 as u8; 16]), encrypted, Mode::Encrypt)
+}
+
+fn is_profile_admin(key: &[u8], cipher_text: &[u8]) -> bool {
+    let mut decrypted = vec!();
+    aes_cbc(key, &cipher_text, Some(&[0 as u8; 16]), &mut decrypted, Mode::Decrypt);
+
+    let mut unpadded = decrypted.clone();
+    unpad_pkcs7(&mut unpadded);
+
+    let utf_str =  unsafe {
+        String::from_utf8_unchecked(unpadded)
+    }.replace("%3D", "=").replace("%3B", ";");
+    match utf_str.find("role=admin") {
+        Some(_) => true,
+        None => false,
+    }
+}
+
+#[test]
+fn challenge_16() {
+    let plain_text1 = sanitize_for_url(&profile_for("foo@bar.com", "user"));
+    let generated_key = random_aes_key();
+
+    let mut encrypted = vec!();
+    encrypt_cbc_profile(&plain_text1, &generated_key, &mut encrypted);
+    assert_eq!(is_profile_admin(&generated_key, &encrypted), false);
+
+
+    let plain_text2 = sanitize_for_url(&profile_for("foo@bar.com", "admin"));
+
+    let mut encrypted = vec!();
+    encrypt_cbc_profile(&plain_text2, &generated_key, &mut encrypted);
+
+    // lets flip some bit
+    encrypted[0] ^= 1;
+    encrypted[1] ^= 1;
+    encrypted[2] ^= 1;
+    assert_eq!(is_profile_admin(&generated_key, &encrypted), true);
+}
+
+
+
+
+
+
+

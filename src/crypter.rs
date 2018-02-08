@@ -18,7 +18,7 @@ pub fn aes_ecb(key: &[u8], cipher: &[u8], iv: Option<&[u8]>, msg: &mut Vec<u8>, 
     count
 }
 
-pub fn aes_cbc(key: &[u8], cipher: &[u8], iv: Option<&[u8]>, msg: &mut Vec<u8>, mode: Mode) -> usize {
+pub fn aes_cbc(key: &[u8], input: &[u8], iv: Option<&[u8]>, msg: &mut Vec<u8>, mode: Mode) -> usize {
 	use combine::xor_each;
 
     let block_size = Cipher::aes_128_ecb().block_size();
@@ -26,7 +26,7 @@ pub fn aes_cbc(key: &[u8], cipher: &[u8], iv: Option<&[u8]>, msg: &mut Vec<u8>, 
 	let mut count = 0;
 	let mut prev = iv.unwrap().to_vec();
 
-    for block in cipher.chunks(block_size){
+    for block in input.chunks(block_size){
     	let mut tmp = vec![0 as u8; block.len() + block_size].to_owned();
     	count += match mode {
     	    Mode::Encrypt => {
