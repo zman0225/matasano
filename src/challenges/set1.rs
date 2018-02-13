@@ -5,9 +5,8 @@ mod test_set1 {
     use crack::{find_xor_key, guess_key_size, find_repeated_xor_key};
     use crypter::aes_ecb;
     use text::CharFreq;
-    use measure::hamming;
     use std::f32;
-    use openssl::symm::{Crypter, Cipher, Mode};
+    use openssl::symm::{Cipher, Mode};
 
 
     #[test]

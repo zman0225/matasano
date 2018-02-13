@@ -212,11 +212,12 @@ pub fn base64_to_hex(string: String) -> Vec<u8> {
 
 
 // if valid returns the length to truncate, else return original length
+// should not call this if we know its not padded
 fn pkcs7_truncate_len(text: &[u8]) -> usize{
     let text_len = text.len();
-
-    if text_len == 0 { return text.len() }
     let last = text[text.len() - 1];
+
+    if text_len == 0 || last > 16 { return text.len() }
 
     for i in text_len - last as usize .. text_len {
         if last != text[i] {
@@ -236,12 +237,12 @@ pub fn unpad_pkcs7(text: &mut Vec<u8>) {
 }
 
 pub fn pad_pkcs7(text: &mut Vec<u8>, len: usize) {
-    let text_len = text.len() % len;
-    let remaining = len - text_len;
+    let mod_len = text.len() % len;
+    let remaining = len - mod_len;
 
-    if remaining > 0 {
-         let fours = vec![remaining as u8; remaining];
-         text.extend(fours);
+    if remaining > 0 && remaining != len{
+         let pad = vec![remaining as u8; remaining];
+         text.extend(pad);
     } 
 }
 

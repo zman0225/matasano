@@ -1,13 +1,11 @@
+
+
 #[cfg(test)]
 mod test_set2 {
-    use conversions::{base64_to_hex, hex_to_base64, string_to_hex, hex_to_string, pad_pkcs7, unpad_pkcs7, pkcs7_validate};
-    use combine::{xor_byte, xor_each};
-    use crack::{find_xor_key, guess_key_size, find_repeated_xor_key};
-    use crypter::{aes_ecb, aes_cbc, encryption_oracle, consistent_ecb, random_aes_key, random_bytes, ecb_oracle};
-    use text::{CharFreq, profile_for, kv_parse, sanitize_for_url};
-    use measure::hamming;
-    use std::f32;
-    use openssl::symm::{Crypter, Cipher, Mode};
+    use conversions::{base64_to_hex, pad_pkcs7, unpad_pkcs7, pkcs7_validate};
+    use crypter::{aes_ecb, aes_cbc, encryption_oracle, random_aes_key, random_bytes, ecb_oracle};
+    use text::{profile_for, sanitize_for_url};
+    use openssl::symm::Mode;
 
     // challenge 16 helpers
     fn encrypt_cbc_profile(profile_data: &str, key: &[u8], encrypted: &mut Vec<u8>) -> usize {
@@ -124,13 +122,14 @@ mod test_set2 {
 
     #[test]
     fn challenge_15() {
-        let valid_bytes = "ICE ICE BABY\x04\x04\x04\x04".as_bytes();
+        let valid_bytes1 = "ICE ICE BABY\x04\x04\x04\x04".as_bytes();
+        let valid_bytes2 = "ICE ICE BABY111\x01".as_bytes();
+
         let invalid_bytes1 = "ICE ICE BABY\x05\x05\x05\x05".as_bytes();
-        let invalid_bytes2 = "ICE ICE BABY\x01\x02\x03\x04".as_bytes();
         
-        assert_eq!(pkcs7_validate(&valid_bytes), true);
+        assert_eq!(pkcs7_validate(&valid_bytes1), true);
+        assert_eq!(pkcs7_validate(&valid_bytes2), true);
         assert_eq!(pkcs7_validate(&invalid_bytes1), false);
-        assert_eq!(pkcs7_validate(&invalid_bytes2), false);
     }
 
     #[test]
@@ -155,3 +154,23 @@ mod test_set2 {
         assert_eq!(is_profile_admin(&generated_key, &encrypted), true);
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
