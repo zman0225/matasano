@@ -2,8 +2,11 @@ use openssl::symm::{Crypter, Cipher, Mode};
 use rand::{thread_rng, Rng};
 use conversions::{base64_to_hex, pad_pkcs7};
 use std::collections::HashMap;
+use std::mem::transmute;
+use combine::xor_each;
 
-pub fn aes_ecb(key: &[u8], cipher: &[u8], iv: Option<&[u8]>, msg: &mut Vec<u8>, mode: Mode) -> usize{
+
+pub fn aes_ecb(key: &[u8], input: &[u8], iv: Option<&[u8]>, msg: &mut Vec<u8>, mode: Mode) -> usize{
     let mut c = Crypter::new(
         Cipher::aes_128_ecb(),
         mode,
@@ -12,14 +15,13 @@ pub fn aes_ecb(key: &[u8], cipher: &[u8], iv: Option<&[u8]>, msg: &mut Vec<u8>, 
     ).unwrap();
     c.pad(false);
 
-    let mut count = c.update(&cipher, &mut *msg).unwrap();
+    let mut count = c.update(&input, &mut *msg).unwrap();
     count += c.finalize(&mut msg[count..]).unwrap();
     msg.truncate(count);
     count
 }
 
 pub fn aes_cbc(key: &[u8], input: &[u8], iv: Option<&[u8]>, msg: &mut Vec<u8>, mode: Mode) -> usize {
-	use combine::xor_each;
 
     let block_size = Cipher::aes_128_ecb().block_size();
 
@@ -47,6 +49,25 @@ pub fn aes_cbc(key: &[u8], input: &[u8], iv: Option<&[u8]>, msg: &mut Vec<u8>, m
     }
     msg.truncate(count);
     count
+}
+
+pub fn aes_ctr(key: &[u8], input: &[u8], nonce: u64, msg: &mut Vec<u8>) -> usize {
+    for (idx, chunk) in input.chunks(key.len()).enumerate() {
+        let mut nonce_bytes: [u8; 8] = unsafe { transmute(nonce as u64) };
+        let mut block_count: [u8; 8] = unsafe { transmute((idx as u64).to_be()) };
+
+        nonce_bytes.reverse();
+        block_count.reverse();
+
+        let key_stream = &[nonce_bytes, block_count].concat();
+        let mut output = vec![0 as u8; key_stream.len() + key.len()].to_owned();
+
+        // it's actually irrelevant what the mode is, as long as encryption and decryption is the same
+        aes_ecb(key, key_stream, None, &mut output, Mode::Encrypt);
+        let xored = xor_each(chunk, &output);
+        msg.extend(xored);
+    }
+    msg.len()
 }
 
 pub fn random_aes_key() -> Vec<u8> {

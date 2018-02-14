@@ -2,8 +2,8 @@
 
 #[cfg(test)]
 mod test_set2 {
-    use conversions::{base64_to_hex, pad_pkcs7, pkcs7_validate};
-    use crypter::{aes_cbc, random_aes_key};
+    use conversions::{hex_to_base64, base64_to_hex, pad_pkcs7, pkcs7_validate};
+    use crypter::{aes_cbc, random_aes_key, aes_ctr};
     use openssl::symm::Mode;
     
     const CH_17_STRS: &'static [&'static str] = &[
@@ -89,6 +89,20 @@ mod test_set2 {
         let mut encrypted = vec!();
         aes_cbc(&generated_key, &padded_plaintext, Some(&iv), &mut encrypted, Mode::Encrypt);
         assert_eq!(cbc_padding_attack(&generated_key, &iv, &encrypted), padded_plaintext);
+    }
+
+    #[test]
+    fn challenge_18() {
+        let encrypted = base64_to_hex("L77na/nrFsKvynd6HzOoG7GHTLXsTVu9qvY/2syLXzhPweyyMTJULu/6/kXX0KSvoOLSFQ==".to_string());
+        let key = "YELLOW SUBMARINE";
+
+        let mut decrypted = vec!();
+        aes_ctr(key.as_bytes(), &encrypted, 0u64, &mut decrypted);
+
+        let mut reencrypted = vec!();
+        aes_ctr(key.as_bytes(), &decrypted, 0u64, &mut reencrypted);
+
+        assert_eq!(encrypted, reencrypted);
     }
 }
 
