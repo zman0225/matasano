@@ -6,3 +6,4 @@ authors = ["Ziyuan Liu <ziyuan.liu@gmail.com>"]
 [dependencies]
 openssl = "*"
 rand = "0.4"
+itertools = "0.7.3"

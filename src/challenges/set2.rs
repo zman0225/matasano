@@ -1,5 +1,3 @@
-
-
 #[cfg(test)]
 mod test_set2 {
     use conversions::{base64_to_hex, pad_pkcs7, unpad_pkcs7, pkcs7_validate};

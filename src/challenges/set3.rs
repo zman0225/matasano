@@ -1,10 +1,11 @@
-
-
 #[cfg(test)]
 mod test_set2 {
+    use itertools::Itertools;
+
     use conversions::{hex_to_base64, base64_to_hex, pad_pkcs7, pkcs7_validate};
     use crypter::{aes_cbc, random_aes_key, aes_ctr};
     use openssl::symm::Mode;
+    use combine::{xor_each_no_wrap};
     
     const CH_17_STRS: &'static [&'static str] = &[
         "MDAwMDAwTm93IHRoYXQgdGhlIHBhcnR5IGlzIGp1bXBpbmc=",
@@ -17,6 +18,49 @@ mod test_set2 {
         "MDAwMDA3SSdtIG9uIGEgcm9sbCwgaXQncyB0aW1lIHRvIGdvIHNvbG8=",
         "MDAwMDA4b2xsaW4nIGluIG15IGZpdmUgcG9pbnQgb2g=",
         "MDAwMDA5aXRoIG15IHJhZy10b3AgZG93biBzbyBteSBoYWlyIGNhbiBibG93"
+    ];
+
+    const CH_19_STRS: &'static [&'static str] = &[
+        "SSBoYXZlIG1ldCB0aGVtIGF0IGNsb3NlIG9mIGRheQ==",
+        "Q29taW5nIHdpdGggdml2aWQgZmFjZXM=",
+        "RnJvbSBjb3VudGVyIG9yIGRlc2sgYW1vbmcgZ3JleQ==",
+        "RWlnaHRlZW50aC1jZW50dXJ5IGhvdXNlcy4=",
+        "SSBoYXZlIHBhc3NlZCB3aXRoIGEgbm9kIG9mIHRoZSBoZWFk",
+        "T3IgcG9saXRlIG1lYW5pbmdsZXNzIHdvcmRzLA==",
+        "T3IgaGF2ZSBsaW5nZXJlZCBhd2hpbGUgYW5kIHNhaWQ=",
+        "UG9saXRlIG1lYW5pbmdsZXNzIHdvcmRzLA==",
+        "QW5kIHRob3VnaHQgYmVmb3JlIEkgaGFkIGRvbmU=",
+        "T2YgYSBtb2NraW5nIHRhbGUgb3IgYSBnaWJl",
+        "VG8gcGxlYXNlIGEgY29tcGFuaW9u",
+        "QXJvdW5kIHRoZSBmaXJlIGF0IHRoZSBjbHViLA==",
+        "QmVpbmcgY2VydGFpbiB0aGF0IHRoZXkgYW5kIEk=",
+        "QnV0IGxpdmVkIHdoZXJlIG1vdGxleSBpcyB3b3JuOg==",
+        "QWxsIGNoYW5nZWQsIGNoYW5nZWQgdXR0ZXJseTo=",
+        "QSB0ZXJyaWJsZSBiZWF1dHkgaXMgYm9ybi4=",
+        "VGhhdCB3b21hbidzIGRheXMgd2VyZSBzcGVudA==",
+        "SW4gaWdub3JhbnQgZ29vZCB3aWxsLA==",
+        "SGVyIG5pZ2h0cyBpbiBhcmd1bWVudA==",
+        "VW50aWwgaGVyIHZvaWNlIGdyZXcgc2hyaWxsLg==",
+        "V2hhdCB2b2ljZSBtb3JlIHN3ZWV0IHRoYW4gaGVycw==",
+        "V2hlbiB5b3VuZyBhbmQgYmVhdXRpZnVsLA==",
+        "U2hlIHJvZGUgdG8gaGFycmllcnM/",
+        "VGhpcyBtYW4gaGFkIGtlcHQgYSBzY2hvb2w=",
+        "QW5kIHJvZGUgb3VyIHdpbmdlZCBob3JzZS4=",
+        "VGhpcyBvdGhlciBoaXMgaGVscGVyIGFuZCBmcmllbmQ=",
+        "V2FzIGNvbWluZyBpbnRvIGhpcyBmb3JjZTs=",
+        "SGUgbWlnaHQgaGF2ZSB3b24gZmFtZSBpbiB0aGUgZW5kLA==",
+        "U28gc2Vuc2l0aXZlIGhpcyBuYXR1cmUgc2VlbWVkLA==",
+        "U28gZGFyaW5nIGFuZCBzd2VldCBoaXMgdGhvdWdodC4=",
+        "VGhpcyBvdGhlciBtYW4gSSBoYWQgZHJlYW1lZA==",
+        "QSBkcnVua2VuLCB2YWluLWdsb3Jpb3VzIGxvdXQu",
+        "SGUgaGFkIGRvbmUgbW9zdCBiaXR0ZXIgd3Jvbmc=",
+        "VG8gc29tZSB3aG8gYXJlIG5lYXIgbXkgaGVhcnQs",
+        "WWV0IEkgbnVtYmVyIGhpbSBpbiB0aGUgc29uZzs=",
+        "SGUsIHRvbywgaGFzIHJlc2lnbmVkIGhpcyBwYXJ0",
+        "SW4gdGhlIGNhc3VhbCBjb21lZHk7",
+        "SGUsIHRvbywgaGFzIGJlZW4gY2hhbmdlZCBpbiBoaXMgdHVybiw=",
+        "VHJhbnNmb3JtZWQgdXR0ZXJseTo=",
+        "QSB0ZXJyaWJsZSBiZWF1dHkgaXMgYm9ybi4="
     ];
     
     fn is_cbc_padding_valid(key: &[u8], cipher_text: &[u8]) -> bool {
@@ -95,14 +139,77 @@ mod test_set2 {
     fn challenge_18() {
         let encrypted = base64_to_hex("L77na/nrFsKvynd6HzOoG7GHTLXsTVu9qvY/2syLXzhPweyyMTJULu/6/kXX0KSvoOLSFQ==".to_string());
         let key = "YELLOW SUBMARINE";
+        let nonce = 0u64;
 
         let mut decrypted = vec!();
-        aes_ctr(key.as_bytes(), &encrypted, 0u64, &mut decrypted);
+        aes_ctr(key.as_bytes(), &encrypted, nonce, &mut decrypted);
 
         let mut reencrypted = vec!();
-        aes_ctr(key.as_bytes(), &decrypted, 0u64, &mut reencrypted);
+        aes_ctr(key.as_bytes(), &decrypted, nonce, &mut reencrypted);
 
         assert_eq!(encrypted, reencrypted);
+    }
+
+    fn get_candidates(ciphers: &Vec<Vec<u8>>, idx: usize) -> Vec<u8> {
+        use std::collections::HashSet;
+        use std::iter::FromIterator;
+
+        let valid_chars: HashSet<&u8> = HashSet::from_iter("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ ,".as_bytes().iter());
+        // grab the u8 values that decrypts out into an actual ascii character
+        let mut retval = vec!();
+        for ch in 0..256u16 {
+            if ciphers.iter().map(|cipher| cipher[idx] ^ ch as u8).all(|c| valid_chars.contains(&c)) {
+                retval.push(ch as u8);
+            }
+        }
+
+        return retval;
+    }
+
+    fn extend_key(current_keys: &mut Vec<u8>, ciphers: &[u8], guess: &[u8]){
+        let key_len = current_keys.len();
+        let xored: Vec<u8> = (0..guess.len()).map(|idx| guess[idx] ^ ciphers[key_len+idx]).collect();
+        current_keys.extend(xored);
+    }
+
+    #[test]
+    fn challenge_19() {
+        use std::cmp::min;
+        let key = [163, 201, 231, 237, 109, 90, 85, 30, 172, 21, 226, 175, 180, 36, 169, 123];
+        let nonce = 0u64;
+
+        let mut encrypted_vec = vec!();
+        for plain_text in CH_19_STRS {
+            let mut decrypted = vec!();
+            aes_ctr(&key, &base64_to_hex(plain_text.to_string()), nonce, &mut decrypted);
+            encrypted_vec.push(decrypted);
+        }
+
+        let char_candidates = (0..10).map(|idx| get_candidates(&encrypted_vec, idx));
+        let mut prods = char_candidates.multi_cartesian_product();
+        let mut current_keys = prods.next().unwrap();
+
+        // manual edit
+        extend_key(&mut current_keys, &encrypted_vec[1], "h ".as_bytes());
+        extend_key(&mut current_keys, &encrypted_vec[3], "entury ".as_bytes());
+        extend_key(&mut current_keys, &encrypted_vec[5], "ss ".as_bytes());
+        extend_key(&mut current_keys, &encrypted_vec[3], "se".as_bytes());
+        extend_key(&mut current_keys, &encrypted_vec[5], "rds".as_bytes());
+        extend_key(&mut current_keys, &encrypted_vec[0], " ".as_bytes());
+        extend_key(&mut current_keys, &encrypted_vec[29], "ght".as_bytes());
+        extend_key(&mut current_keys, &encrypted_vec[4], " ".as_bytes());
+        extend_key(&mut current_keys, &encrypted_vec[27], "d".as_bytes());
+        extend_key(&mut current_keys, &encrypted_vec[4], "ead".as_bytes());
+        extend_key(&mut current_keys, &encrypted_vec[37], "n,".as_bytes());
+
+        let keys_len = current_keys.len();
+
+        for (idx, cipher) in encrypted_vec.iter().enumerate(){
+            let c_len = cipher.len();
+            let t1 = xor_each_no_wrap(&cipher[..min(keys_len, c_len)], &current_keys[..min(c_len, keys_len)]);
+            let decrypted = [&t1[..], &cipher[min(keys_len, c_len)..]].concat();
+            assert_eq!(hex_to_base64(&decrypted), CH_19_STRS[idx]);
+        }
     }
 }
 
