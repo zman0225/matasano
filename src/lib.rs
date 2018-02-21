@@ -8,5 +8,6 @@ pub mod crack;
 pub mod text;
 pub mod measure;
 pub mod crypter;
+pub mod mersenne;
 
 pub mod challenges;

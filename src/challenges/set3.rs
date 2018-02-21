@@ -1,12 +1,15 @@
 #[cfg(test)]
 mod test_set2 {
     use itertools::Itertools;
-
+    use std::cmp::min;
     use conversions::{hex_to_base64, base64_to_hex, pad_pkcs7, pkcs7_validate};
     use crypter::{aes_cbc, random_aes_key, aes_ctr};
     use openssl::symm::Mode;
     use combine::{xor_each_no_wrap};
-    
+    use crack::{find_xor_key, guess_key_size, find_repeated_xor_key};
+    use mersenne::MTRng;
+    use rand::{thread_rng, Rng};
+
     const CH_17_STRS: &'static [&'static str] = &[
         "MDAwMDAwTm93IHRoYXQgdGhlIHBhcnR5IGlzIGp1bXBpbmc=",
         "MDAwMDAxV2l0aCB0aGUgYmFzcyBraWNrZWQgaW4gYW5kIHRoZSBWZWdhJ3MgYXJlIHB1bXBpbic=",
@@ -118,7 +121,6 @@ mod test_set2 {
     #[test]
     fn challenge_17() {
         // 1. randomly pick
-        use rand::{thread_rng, Rng};
         let mut rng = thread_rng();
 
         let iv = random_aes_key();
@@ -174,7 +176,6 @@ mod test_set2 {
 
     #[test]
     fn challenge_19() {
-        use std::cmp::min;
         let key = [163, 201, 231, 237, 109, 90, 85, 30, 172, 21, 226, 175, 180, 36, 169, 123];
         let nonce = 0u64;
 
@@ -210,6 +211,114 @@ mod test_set2 {
             let decrypted = [&t1[..], &cipher[min(keys_len, c_len)..]].concat();
             assert_eq!(hex_to_base64(&decrypted), CH_19_STRS[idx]);
         }
+    }
+
+    #[test]
+    fn challenge_20() {
+        // no need to finish this one, it does need manual input to polish the rest, but it looks pretty good without.
+        let plain_text: Vec<Vec<u8>> = include_str!("data/20.txt").lines().map(|l| base64_to_hex(l.to_string())).collect();
+        let key = random_aes_key();
+        let nonce = 0u64;
+
+        let mut ciphers = vec!();
+        for line in plain_text.iter() {
+            let mut decrypted = vec!();
+            aes_ctr(&key, &line, nonce, &mut decrypted);
+            ciphers.push(decrypted);
+        }
+
+        let min_len = ciphers.iter().min_by_key(|cipher| cipher.len()).unwrap().len();
+
+        let truncated_ciphers: Vec<Vec<u8>> = ciphers.iter().map(|cipher| cipher[..min_len].to_vec()).into_iter().collect();
+        let zipped_ciphers = (0..min(truncated_ciphers.len() as u8, min_len as u8)).map(|idx| truncated_ciphers.iter().map(|cipher| cipher[idx as usize]).collect::<Vec<u8>>());
+        let key_stream: Vec<u8> = zipped_ciphers.map(|cipher| find_xor_key(&cipher)).collect();
+
+        let keys_len = key_stream.len();
+
+        for (idx, cipher) in ciphers.iter().enumerate(){
+            let c_len = cipher.len();
+            let t1 = xor_each_no_wrap(&cipher[..min(keys_len, c_len)], &key_stream[..min(c_len, keys_len)]);
+            let decrypted = [&t1[..], &cipher[min(keys_len, c_len)..]].concat();
+            println!("vs {:?} {:?}", String::from_utf8(t1.clone()), String::from_utf8(plain_text[idx][..t1.len()].to_vec()));
+        }
+    }
+
+    const TEST_VECTOR: [u32; 20] = [
+        3499211612, 
+        581869302, 
+        3890346734, 
+        3586334585, 
+        545404204, 
+        4161255391, 
+        3922919429, 
+        949333985, 
+        2715962298, 
+        1323567403, 
+        418932835, 
+        2350294565, 
+        1196140740, 
+        809094426, 
+        2348838239, 
+        4264392720, 
+        4112460519, 
+        4279768804, 
+        4144164697, 
+        4156218106
+    ];
+
+    #[test]
+    fn challenge_21() {
+
+        let mut rng = MTRng::mt19937(5489);
+
+        for true_val in TEST_VECTOR.iter() {
+            assert_eq!(*true_val, rng.u32());
+        }
+    }
+
+    #[test]
+    fn challenge_22() {
+        // brute forcing out a seed
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let mut th_rng = thread_rng();
+
+        let seed = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32 + th_rng.gen_range(40, 1000);
+        println!("seed is {:?}", seed);
+
+        let mut rng = MTRng::mt19937(seed);
+        let first = rng.u32();
+
+        let rand_epoch = seed + th_rng.gen_range(40, 1000); 
+        for i in 0..2000 {
+            let key = rand_epoch - i;
+            let mut rng = MTRng::mt19937(key);
+            let rand_value = rng.u32();
+            if rand_value == first {
+                assert_eq!(key, seed);
+            }
+        }
+    }
+
+    #[test]
+    fn challenge_23() {
+        let mut th_rng = thread_rng();
+        let rand_seed = th_rng.gen_iter::<u32>().next().unwrap();
+
+        let mut rng1 = MTRng::mt19937(rand_seed);
+        let mut new_mt = vec![0 as u32; 624];
+
+        rng1.untemper(1339713300);
+        for idx in 0..624 {
+            let val = rng1.u32();
+            new_mt[idx] = rng1.untemper(val);
+        }
+        let mut rng2 = MTRng::mt19937(0);
+        rng2._mt = new_mt;
+
+        for _ in 0..1000 {
+            assert_eq!(rng1.u32(), rng2.u32());
+        }
+
     }
 }
 
