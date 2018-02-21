@@ -1,14 +1,15 @@
 #[cfg(test)]
-mod test_set2 {
+mod test_set3 {
     use itertools::Itertools;
     use std::cmp::min;
     use conversions::{hex_to_base64, base64_to_hex, pad_pkcs7, pkcs7_validate};
-    use crypter::{aes_cbc, random_aes_key, aes_ctr};
+    use crypter::{aes_cbc, random_aes_key, random_bytes, aes_ctr};
     use openssl::symm::Mode;
     use combine::{xor_each_no_wrap};
-    use crack::{find_xor_key, guess_key_size, find_repeated_xor_key};
+    use crack::{find_xor_key};
     use mersenne::MTRng;
     use rand::{thread_rng, Rng};
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     const CH_17_STRS: &'static [&'static str] = &[
         "MDAwMDAwTm93IHRoYXQgdGhlIHBhcnR5IGlzIGp1bXBpbmc=",
@@ -238,7 +239,7 @@ mod test_set2 {
         for (idx, cipher) in ciphers.iter().enumerate(){
             let c_len = cipher.len();
             let t1 = xor_each_no_wrap(&cipher[..min(keys_len, c_len)], &key_stream[..min(c_len, keys_len)]);
-            let decrypted = [&t1[..], &cipher[min(keys_len, c_len)..]].concat();
+            let _decrypted = [&t1[..], &cipher[min(keys_len, c_len)..]].concat();
             println!("vs {:?} {:?}", String::from_utf8(t1.clone()), String::from_utf8(plain_text[idx][..t1.len()].to_vec()));
         }
     }
@@ -279,7 +280,6 @@ mod test_set2 {
     #[test]
     fn challenge_22() {
         // brute forcing out a seed
-        use std::time::{SystemTime, UNIX_EPOCH};
         let mut th_rng = thread_rng();
 
         let seed = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u32 + th_rng.gen_range(40, 1000);
@@ -318,7 +318,56 @@ mod test_set2 {
         for _ in 0..1000 {
             assert_eq!(rng1.u32(), rng2.u32());
         }
+    }
 
+    // challenge 24
+    fn mersenne_encrypt(plain_text: &[u8], seed: u32) -> Vec<u8> {
+        let mut rng = MTRng::mt19937(seed);
+        let key_stream = (0..plain_text.len()).map(|_| rng.u8()).collect::<Vec<u8>>();
+        xor_each_no_wrap(&plain_text, &key_stream)
+    }
+
+    fn encryption_oracle(plain_text: &[u8]) ->  Vec<u8>{
+        let mut th_rng = thread_rng();
+        let prefix = random_bytes();
+        let plain_text = &[&prefix, plain_text].concat();
+
+        let rand_seed = th_rng.gen_iter::<u16>().next().unwrap();
+        println!("Oracle seed is {:?}", rand_seed);
+        mersenne_encrypt(plain_text, rand_seed as u32)
+    }
+
+    #[test]
+    fn challenge_24() {
+        let mut th_rng = thread_rng();
+
+        // recover the key first
+        let plain_text = vec![0; 14];
+        let cipher_text = encryption_oracle(&plain_text);
+        let prefix_len = cipher_text.len() - plain_text.len();
+
+        // we can brute force every single bit combo
+        let mut forced_key: u16 = 0;
+        for i in (0..u16::max_value()) {
+            let c = mersenne_encrypt(&vec![0; cipher_text.len()], i as u32);
+            if c[prefix_len..] == cipher_text[prefix_len..] {
+                forced_key = i as u16;
+                break;
+            }
+        }
+
+        println!("key is {:?}", forced_key);
+
+        // test for time seed consistency
+        let current_time_seed = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u16;
+
+        let plain_text1 = vec![0; th_rng.gen_range(4, 20)];
+        let cipher_text1 = mersenne_encrypt(&plain_text1, current_time_seed as u32);
+
+        let current_time_seed = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() as u16;
+        let cipher_text2 =  mersenne_encrypt(&plain_text1, current_time_seed as u32);
+
+        assert_eq!(cipher_text1, cipher_text2);
     }
 }
 

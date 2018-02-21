@@ -5,34 +5,6 @@ mod test_set2 {
     use text::{profile_for, sanitize_for_url};
     use openssl::symm::Mode;
 
-    // challenge 16 helpers
-    fn encrypt_cbc_profile(profile_data: &str, key: &[u8], encrypted: &mut Vec<u8>) -> usize {
-        let prefix = "comment1=cooking%20MCs;userdata=".as_bytes();
-        let suffix = ";comment2=%20like%20a%20pound%20of%20bacon".as_bytes();
-
-        let plain_text = [&prefix[..], &profile_data.as_bytes()[..], &suffix[..]].concat();
-        let mut padded_input = plain_text.to_owned().to_vec();
-        pad_pkcs7(&mut padded_input, key.len());
-
-        aes_cbc(key, &padded_input, Some(&[0 as u8; 16]), encrypted, Mode::Encrypt)
-    }
-
-    fn is_profile_admin(key: &[u8], cipher_text: &[u8]) -> bool {
-        let mut decrypted = vec!();
-        aes_cbc(key, &cipher_text, Some(&[0 as u8; 16]), &mut decrypted, Mode::Decrypt);
-
-        let mut unpadded = decrypted.clone();
-        unpad_pkcs7(&mut unpadded);
-
-        let utf_str =  unsafe {
-            String::from_utf8_unchecked(unpadded)
-        }.replace("%3D", "=").replace("%3B", ";");
-        match utf_str.find("role=admin") {
-            Some(_) => true,
-            None => false,
-        }
-    }
-
     #[test]
     fn challenge_9() {
         // we have to take care of padding here
@@ -128,6 +100,34 @@ mod test_set2 {
         assert_eq!(pkcs7_validate(&valid_bytes1), true);
         assert_eq!(pkcs7_validate(&valid_bytes2), true);
         assert_eq!(pkcs7_validate(&invalid_bytes1), false);
+    }
+
+    // challenge 16 helpers
+    fn encrypt_cbc_profile(profile_data: &str, key: &[u8], encrypted: &mut Vec<u8>) -> usize {
+        let prefix = "comment1=cooking%20MCs;userdata=".as_bytes();
+        let suffix = ";comment2=%20like%20a%20pound%20of%20bacon".as_bytes();
+
+        let plain_text = [&prefix[..], &profile_data.as_bytes()[..], &suffix[..]].concat();
+        let mut padded_input = plain_text.to_owned().to_vec();
+        pad_pkcs7(&mut padded_input, key.len());
+
+        aes_cbc(key, &padded_input, Some(&[0 as u8; 16]), encrypted, Mode::Encrypt)
+    }
+
+    fn is_profile_admin(key: &[u8], cipher_text: &[u8]) -> bool {
+        let mut decrypted = vec!();
+        aes_cbc(key, &cipher_text, Some(&[0 as u8; 16]), &mut decrypted, Mode::Decrypt);
+
+        let mut unpadded = decrypted.clone();
+        unpad_pkcs7(&mut unpadded);
+
+        let utf_str =  unsafe {
+            String::from_utf8_unchecked(unpadded)
+        }.replace("%3D", "=").replace("%3B", ";");
+        match utf_str.find("role=admin") {
+            Some(_) => true,
+            None => false,
+        }
     }
 
     #[test]

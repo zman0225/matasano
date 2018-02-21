@@ -32,7 +32,7 @@ impl MTRng {
 
     	for idx in 1..624 {
     		let last_val = _mt[(idx-1) as usize];
-    		let new_val = f.wrapping_mul(last_val ^ (last_val >> 30)) + idx as u32;
+            let new_val = f.wrapping_mul(last_val ^ (last_val >> 30)).wrapping_add(idx as u32);
     		_mt[idx] = new_val;
     	}
 
@@ -80,6 +80,9 @@ impl MTRng {
     	y
     }
 
+    pub fn u8(&mut self) -> u8 {
+    	self.u32() as u8
+    }
 
     pub fn undo_right_shift_xor(&self, y: u32, l: u32) -> u32 {
         // first self.l of y' is going to be same as y
