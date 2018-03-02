@@ -250,4 +250,3 @@ pub fn ecb_oracle(plain_text: &mut Vec<u8>, prefix: Vec<u8>) -> String {
     generate_next_byte(&generated_key, block_size, &prefix, prefix_size)
 }
 
-

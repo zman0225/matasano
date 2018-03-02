@@ -2,6 +2,7 @@
 
 use std::iter::Iterator;
 
+
 const BASE_64: &'static [u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 fn hex_to_char(short: u8) -> char {
@@ -245,54 +246,3 @@ pub fn pad_pkcs7(text: &mut Vec<u8>, len: usize) {
          text.extend(pad);
     } 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

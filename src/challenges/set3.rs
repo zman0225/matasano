@@ -348,7 +348,7 @@ mod test_set3 {
 
         // we can brute force every single bit combo
         let mut forced_key: u16 = 0;
-        for i in (0..u16::max_value()) {
+        for i in 0..u16::max_value() {
             let c = mersenne_encrypt(&vec![0; cipher_text.len()], i as u32);
             if c[prefix_len..] == cipher_text[prefix_len..] {
                 forced_key = i as u16;
@@ -370,23 +370,3 @@ mod test_set3 {
         assert_eq!(cipher_text1, cipher_text2);
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

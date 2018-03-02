@@ -7,11 +7,11 @@
 // l = 18
 
 pub struct MTRng {
-    seed: u32,
-    w: u32,
+    _seed: u32,
+    _w: u32,
     n: u32,
     m: u32,
-    r: u32,
+    _r: u32,
     a: u32,
     u: u32,
     d: u32,
@@ -25,10 +25,10 @@ pub struct MTRng {
 }
 
 impl MTRng {
-    pub fn mt19937(seed: u32) -> MTRng {
+    pub fn mt19937(_seed: u32) -> MTRng {
     	let f: u32 = 0x6C078965;
     	let mut _mt = vec![0; 624];
-    	_mt[0] = seed;
+    	_mt[0] = _seed;
 
     	for idx in 1..624 {
     		let last_val = _mt[(idx-1) as usize];
@@ -37,10 +37,10 @@ impl MTRng {
     	}
 
         MTRng {
-        	w: 32,
+        	_w: 32,
         	n: 624,
         	m: 397,
-        	r: 31,
+        	_r: 31,
         	a: 0x9908B0DF,
         	u: 11,
         	d: 0xFFFFFFFF,
@@ -51,7 +51,7 @@ impl MTRng {
 			l: 18,
 			_index: 0,
 			_mt,
-        	seed 
+        	_seed 
         }
     }
 
