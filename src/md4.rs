@@ -38,13 +38,6 @@ impl MD4 {
     }
 
     fn _process(&self, message: &[u8]) -> [u32; 4]{
-        // source: https://en.wikipedia.org/wiki/SHA-1#SHA-1_pseudocode
-        // Note 1: All variables are unsigned 32-bit quantities and wrap modulo 232 when calculating, except for
-        //         ml, the message length, which is a 64-bit quantity, and
-        //         hh, the message digest, which is a 160-bit quantity.
-        // Note 2: All constants in this pseudo code are in big endian.
-        //         Within each word, the most significant byte is stored in the leftmost byte position
-
         let mut state: [u32; 4] = self.registers.clone();
 
         // Process the message in successive 512-bit chunks:

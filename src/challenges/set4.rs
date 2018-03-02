@@ -7,6 +7,12 @@ mod test_set4 {
     use text::{profile_for, sanitize_for_url};
     use sha1::{SHA1, generate_sha1_padding};
     use md4::{MD4, generate_md4_padding};
+    use std::thread;
+    use std::time::{Duration, Instant};
+    use std::sync::mpsc::{Sender, Receiver};
+    use std::sync::mpsc;
+    use hmac::hmac_sha1;
+    use std::collections::BinaryHeap;
 
     fn edit(ciphertext: &[u8], new_text: &[u8], key: &[u8], nonce: u64, offset: u8) -> Vec<u8> {
         let mut output = vec!();
@@ -150,7 +156,7 @@ mod test_set4 {
         // SHA1(key || original-message || glue-padding || new-message)
 
         // the key and its length isn't known to us.
-        let key = random_bytes();
+        let key = random_bytes(16, 32);
         let key_length = key.len();
         
         // the original message and thus length is known to us.
@@ -191,7 +197,7 @@ mod test_set4 {
     #[test]
     fn challenge_30() {
         // the key and its length isn't known to us.
-        let key = random_bytes();
+        let key = random_bytes(16, 32);
         let key_length = key.len();
         
         // the original message and thus length is known to us.
@@ -223,30 +229,155 @@ mod test_set4 {
         panic!("should reach here");
     }
 
+
+
+    // challenge 31
+    #[derive(Debug)]
+    enum Instruction {
+        Process,
+        Done,
+        Exit
+    }
+
+    #[derive(Debug)]
+    struct MessagePayload {
+        cmd_code: Instruction,
+        file_signature: Option<(Vec<u8>, Vec<u8>)>,
+        result: Option<bool>
+    }
+
+    fn insecure_compare(signature: &[u8], sent_signature: &[u8], delay: u64) -> bool {
+        let xiter = sent_signature.iter().cycle();
+        let pairs = signature.iter().zip(xiter);
+        for (a, b) in pairs {
+            if a != b {
+                return false;
+            }
+            thread::sleep(Duration::from_millis(delay)); // block for 50 ms
+
+        }
+        true
+    }
+
+    fn create_payload(cmd_code: Instruction, file_signature: Option<(Vec<u8>, Vec<u8>)>, result: Option<bool>) -> MessagePayload {
+        MessagePayload{
+            cmd_code,
+            file_signature,
+            result,
+        }
+    }
+
+    fn response_time(file: &[u8], ch: u8, current_signature: &Vec<u8>, tx1: &Sender<MessagePayload>, rx2: &Receiver<MessagePayload>) -> u32 {
+        let mp = create_payload(
+            Instruction::Process,
+            Some((file.clone().to_vec(), [&current_signature[..], &[ch]].concat())), 
+            None
+        );
+        tx1.send(mp).unwrap();
+        
+        let now = Instant::now();
+
+        // wait for response
+        if let Ok(payload) = rx2.recv() {
+            match payload.cmd_code {
+                Instruction::Done => {
+                    let time_taken = now.elapsed().subsec_nanos();
+                    return time_taken;
+                },
+                _ => (),
+            }
+        }
+        0
+    }
+
+    fn spawn_server(rx1: Receiver<MessagePayload>, tx2: Sender<MessagePayload>, delay: u64) -> thread::JoinHandle<()>{
+        // here's our server
+        thread::spawn(move || {
+            // first generate a hmac key
+            let key = b"YELLOW SUBMARINE".to_vec();
+
+            // then wait to receive an call from client
+            while let Ok(message) = rx1.recv() {
+                match message.cmd_code {
+                    Instruction::Process => {
+                        // process the file here
+                        if let Some((file, signature)) = message.file_signature {
+                            // hash and insecure compare
+                            let mp = create_payload(Instruction::Done, None, Some(insecure_compare(&hmac_sha1(&key, &file), &signature, delay)));
+                            tx2.send(mp).unwrap();
+                        }
+                    },
+                    Instruction::Exit => break,
+                    _ => continue,
+                }
+            }
+        })
+    }
+
     #[test]
     fn challenge_31() {
-        use hmac::hmac_sha1;
+        let (tx1, rx1): (Sender<MessagePayload>, Receiver<MessagePayload>) = mpsc::channel();
+        let (tx2, rx2): (Sender<MessagePayload>, Receiver<MessagePayload>) = mpsc::channel();
+        spawn_server(rx1, tx2, 10);
+        // first we know that signature has to be 16 bytes
+        // the hmac is consistent in runtime
+        // however the insecure compare function is not, the longer it takes, the more we have correct
+        // brute force it
 
-        
+        let file = random_bytes(60, 200);
+        let mut signature = vec!();
+
+        // shorten the digest length to make it quicker
+        let digest_len = 6; // bytes for md4
+
+        for _i in 0..digest_len {
+            let mut max_time_heap = BinaryHeap::new();
+
+            for ch in 0..256 as usize {
+                let time_taken = response_time(&file, ch as u8, &signature, &tx1, &rx2) ;
+                max_time_heap.push((time_taken, ch as u8));
+            }
+            signature.push(max_time_heap.peek().unwrap().1);
+        }
+        let mp = create_payload(Instruction::Exit, None, None);
+        tx1.send(mp).unwrap();
+
+        // over all this takes too long, we could multiprocess it with an async server
+        // so lets just compare the first few bytes for accuracy sake
+        let key = b"YELLOW SUBMARINE".to_vec();
+        let true_val = &hmac_sha1(&key, &file).to_vec()[..digest_len];
+        assert_eq!(true_val, &signature[..]);
+    }
+
+    #[test]
+    fn challenge_32() {
+        let (tx1, rx1): (Sender<MessagePayload>, Receiver<MessagePayload>) = mpsc::channel();
+        let (tx2, rx2): (Sender<MessagePayload>, Receiver<MessagePayload>) = mpsc::channel();
+        spawn_server(rx1, tx2, 9);
+
+        let file = random_bytes(60, 200);
+        let mut signature = vec!();
+
+        // shorten the digest length to make it quicker
+        let digest_len = 16; // bytes for md4
+
+        for _i in 0..digest_len {
+            let mut max_time_heap = BinaryHeap::new();
+
+            for ch in 0..256 as usize {
+                let time_taken = response_time(&file, ch as u8, &signature, &tx1, &rx2) ;
+                max_time_heap.push((time_taken, ch as u8));
+            }
+            signature.push(max_time_heap.peek().unwrap().1);
+            println!("found {:?}", &max_time_heap.into_sorted_vec()[250..]);
+        }
+        let mp = create_payload(Instruction::Exit, None, None);
+        tx1.send(mp).unwrap();
+
+        // over all this takes too long, we could multiprocess it with an async server
+        // so lets just compare the first few bytes for accuracy sake
+        let key = b"YELLOW SUBMARINE".to_vec();
+        let true_val = &hmac_sha1(&key, &file).to_vec()[..digest_len];
+        assert_eq!(true_val, &signature[..]);
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

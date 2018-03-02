@@ -85,7 +85,7 @@ mod test_set2 {
 
     #[test]
     fn challenge_14() {
-        let prefix = random_bytes().to_vec();
+        let prefix = random_bytes(16, 32).to_vec();
         let result = ecb_oracle(&mut vec!(), prefix);
         println!("answer is {:?}", result);
     }

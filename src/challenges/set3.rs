@@ -236,7 +236,7 @@ mod test_set3 {
 
         let keys_len = key_stream.len();
 
-        for (idx, cipher) in ciphers.iter().enumerate(){
+        for cipher in ciphers.iter(){
             let c_len = cipher.len();
             let t1 = xor_each_no_wrap(&cipher[..min(keys_len, c_len)], &key_stream[..min(c_len, keys_len)]);
             let _decrypted = [&t1[..], &cipher[min(keys_len, c_len)..]].concat();
@@ -328,7 +328,7 @@ mod test_set3 {
 
     fn encryption_oracle(plain_text: &[u8]) ->  Vec<u8>{
         let mut th_rng = thread_rng();
-        let prefix = random_bytes();
+        let prefix = random_bytes(16, 32);
         let plain_text = &[&prefix, plain_text].concat();
 
         let rand_seed = th_rng.gen_iter::<u16>().next().unwrap();
