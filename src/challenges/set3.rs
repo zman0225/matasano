@@ -240,7 +240,6 @@ mod test_set3 {
             let c_len = cipher.len();
             let t1 = xor_each_no_wrap(&cipher[..min(keys_len, c_len)], &key_stream[..min(c_len, keys_len)]);
             let _decrypted = [&t1[..], &cipher[min(keys_len, c_len)..]].concat();
-            println!("vs {:?} {:?}", String::from_utf8(t1.clone()), String::from_utf8(plain_text[idx][..t1.len()].to_vec()));
         }
     }
 
@@ -348,7 +347,7 @@ mod test_set3 {
 
         // we can brute force every single bit combo
         let mut forced_key: u16 = 0;
-        for i in (0..u16::max_value()) {
+        for i in 0..u16::max_value() {
             let c = mersenne_encrypt(&vec![0; cipher_text.len()], i as u32);
             if c[prefix_len..] == cipher_text[prefix_len..] {
                 forced_key = i as u16;
@@ -370,23 +369,3 @@ mod test_set3 {
         assert_eq!(cipher_text1, cipher_text2);
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
