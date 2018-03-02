@@ -14,6 +14,7 @@ mod test_set4 {
     use hmac::hmac_sha1;
     use std::collections::BinaryHeap;
 
+
     fn edit(ciphertext: &[u8], new_text: &[u8], key: &[u8], nonce: u64, offset: u8) -> Vec<u8> {
         let mut output = vec!();
         let offset_input = &[&vec![0; offset as usize], new_text].concat();

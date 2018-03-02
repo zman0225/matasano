@@ -111,7 +111,7 @@ impl MD4 {
                 registers[i] = op3(registers[i], registers[(i+1)%4], registers[(i+2)%4], registers[(i+3)%4], data[k[r]], s[r%4]);
             }
             for (idx, s) in state.iter_mut().enumerate() {
-                *s += registers[idx];
+                *s = s.wrapping_add(registers[idx]);
             }
         }
         state

@@ -93,6 +93,7 @@ impl SHA1 {
                 };
 
                 let temp = a.rotate_left(5).wrapping_add(f).wrapping_add(e).wrapping_add(k).wrapping_add(words[idx]);
+
                 e = d;
                 d = c;
                 c = b.rotate_left(30);
@@ -100,11 +101,11 @@ impl SHA1 {
                 a = temp;
             }
             
-            h[0] += a;
-            h[1] += b;
-            h[2] += c;
-            h[3] += d;
-            h[4] += e;
+            h[0] = h[0].wrapping_add(a);
+            h[1] = h[1].wrapping_add(b);
+            h[2] = h[2].wrapping_add(c);
+            h[3] = h[3].wrapping_add(d);
+            h[4] = h[4].wrapping_add(e);
 
         }
 
