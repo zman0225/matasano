@@ -237,11 +237,11 @@ pub fn unpad_pkcs7(text: &mut Vec<u8>) {
     text.truncate(truncate_len);
 }
 
-pub fn pad_pkcs7(text: &mut Vec<u8>, len: usize) {
-    let mod_len = text.len() % len;
-    let remaining = len - mod_len;
+pub fn pad_pkcs7(text: &mut Vec<u8>, key_size: usize) {
+    let mod_len = text.len() % key_size;
+    let remaining = key_size - mod_len;
 
-    if remaining > 0 && remaining != len{
+    if remaining > 0 && remaining != key_size{
          let pad = vec![remaining as u8; remaining];
          text.extend(pad);
     } 

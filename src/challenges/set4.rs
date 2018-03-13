@@ -316,6 +316,7 @@ mod test_set4 {
     }
 
     #[test]
+    #[ignore]
     fn challenge_31() {
         let (tx1, rx1): (Sender<MessagePayload>, Receiver<MessagePayload>) = mpsc::channel();
         let (tx2, rx2): (Sender<MessagePayload>, Receiver<MessagePayload>) = mpsc::channel();
@@ -351,6 +352,7 @@ mod test_set4 {
     }
 
     #[test]
+    #[ignore]
     fn challenge_32() {
         let (tx1, rx1): (Sender<MessagePayload>, Receiver<MessagePayload>) = mpsc::channel();
         let (tx2, rx2): (Sender<MessagePayload>, Receiver<MessagePayload>) = mpsc::channel();

@@ -1,6 +1,7 @@
 extern crate itertools;
 extern crate openssl;
 extern crate rand;
+extern crate num_bigint;
 
 pub mod conversions;
 pub mod combine;
@@ -13,6 +14,6 @@ pub mod sha1;
 pub mod md4;
 pub mod bits;
 pub mod hmac;
-
+pub mod dh;
 
 pub mod challenges;

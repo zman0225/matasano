@@ -77,7 +77,7 @@ pub fn random_aes_key() -> Vec<u8> {
 
 pub fn random_bytes(min: usize, max: usize) -> Vec<u8> {
     let mut rng = thread_rng();
-    let len = rng.gen_range(min, max) as usize;
+    let len = if min == max { max } else { rng.gen_range(min, max) as usize };
     rng.gen_iter::<u8>().take(len).collect::<Vec<u8>>()
 }
 

@@ -5,6 +5,8 @@
 // (s, b) = (7, 9D2C568016)
 // (t, c) = (15, EFC6000016)
 // l = 18
+use std::fs::File;
+use std::io::Read;
 
 pub struct MTRng {
     _seed: u32,
@@ -22,6 +24,14 @@ pub struct MTRng {
     l: u32,
     _index: usize,
     pub _mt: Vec<u32>,
+}
+
+fn read_urandom() -> u32 {
+    let mut v = [0u8; 4];
+    let mut file = File::open("/dev/urandom")
+        .expect("failed to open /dev/urandom");
+    file.read_exact(&mut v).expect("failed to read /dev/urandom");
+    (v[0] as u32) << 24 | ((v[1] as u32) << 16) | ((v[2] as u32) << 8) | v[3] as u32
 }
 
 impl MTRng {
@@ -53,6 +63,10 @@ impl MTRng {
 			_mt,
         	_seed 
         }
+    }
+
+    pub fn new() -> MTRng {
+        Self::mt19937(read_urandom())
     }
 
     pub fn generate_number(&mut self) {
