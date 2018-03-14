@@ -16,7 +16,8 @@ mod test_set5 {
     use dh::KeyPair;
     use openssl::symm::Mode;
     use crypter::{aes_cbc, random_bytes};
-    use num_bigint::BigUint;
+    use rsa::rsa_keygen;
+    use num::bigint::BigUint;
 
 
     const NIST_P: &'static [u8] = b"ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024
@@ -28,6 +29,7 @@ c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552
 bb9ed529077096966d670c354e4abc9804f1746c08ca237327fff
 fffffffffffff";
     const NIST_G: &'static [u8] = b"2";
+    const K: &'static [u8] = b"k";
 
 
     #[test]
@@ -126,6 +128,20 @@ fffffffffffff";
         assert_eq!(cbc_decrypt(&m_keypair, &false_pubkey, &b_msg_encrypted), b_msg);
 
         // we can do all of this because when generating the session key with the p value, we get a 0 session key
+    }
+
+    #[test]
+    fn challenge_35() {
+        // MITM attack with the following cases
+        // g = 1 // public key becomes 1 // session key is 1
+        // g = p // public key becomes 0 // 
+        // g = p - 1 // public key alternates between g and 1, odd exp is even is 1
+        // seems like we need better primes...
+    }
+
+    #[test]
+    fn challenge_39() {
+        println!("rsa {:?}", rsa_keygen());
     }
     
 }

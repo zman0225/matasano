@@ -7,4 +7,5 @@ authors = ["Ziyuan Liu <ziyuan.liu@gmail.com>"]
 openssl = "*"
 rand = "0.4"
 itertools = "0.7.3"
-num-bigint = "0.1"
+num = "0.1"
+

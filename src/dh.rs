@@ -1,6 +1,6 @@
 use mersenne::MTRng;
 use sha1::SHA1;
-use num_bigint::BigUint;
+use num::bigint::BigUint;
 
 
 pub struct KeyPair {
